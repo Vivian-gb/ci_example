@@ -1,0 +1,87 @@
+version: "3.0"
+services:
+  activemq:
+    image: webcenter/activemq:latest
+    networks:
+      - local
+    ports:
+      - "8161:8161"
+      - "5672:5672"
+      - "61616:61616"
+      - "61613:61613"
+    environment:
+      - ACTIVEMQ_CONFIG_MINMEMORY=512
+      - ACTIVEMQ_CONFIG_MAXMEMORY=2048
+    volumes:
+      - ./activemq/data:/data/activemq:rw
+      - ./activemq/logs:/var/log/activemq:rw
+      - ./activemq:/opt/activemq/conf
+  tomcat_dev:
+    build:
+      context: ./tomcat
+    networks:
+      - local
+    ports:
+      - "8888:8080"
+    environment:
+      - ENV_NAME=DEV
+    volumes:
+      - ./tomcat/deploy/DEV:/usr/local/tomcat/webapps:rw
+    depends_on: 
+      - activemq
+  tomcat_ti:
+    build:
+      context: ./tomcat
+    networks:
+      - local
+    ports:
+      - "8889:8080"
+    environment:
+      - ENV_NAME=TI
+    volumes:
+      - ./tomcat/deploy/TI:/usr/local/tomcat/webapps:rw
+    depends_on: 
+      - tomcat_dev
+  db:
+    image: postgres
+    restart: always
+    environment:
+      - POSTGRES_USER="sonar"
+      - POSTGRES_PASSWORD="sonar"
+      - POSTGRES_DB="sonar"
+    volumes:
+      - ./postgresql/data:/var/lib/postgresql/data:rw
+  sonarqube:
+    image: sonarqube
+    networks:
+      - local
+    ports:
+      - "9000:9000"
+      - "9092:9092"
+    volumes:
+      - ./sonarqube/data:/opt/sonarqube/data:rw
+    depends_on: 
+      - db
+  jenkins:
+    image: stephenreed/jenkins-java8-maven-git
+    networks:
+      - local
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    environment:
+      - JAVA_OPTS="-Djava.util.logging.config.file=/var/jenkins_home/log.properties"
+    volumes:
+      - ./jenkins/data:/jenkins:rw
+      - /etc/localtime:/etc/localtime:ro
+      - ./tomcat/deploy/DEV:/tomcat/DEV:rw
+      - ./tomcat/deploy/TI:/tomcat/TI:rw
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on: 
+      - sonarqube
+networks:
+  local:
+    ipam:
+      config:
+        - subnet: 101.1.1.0/24
+
