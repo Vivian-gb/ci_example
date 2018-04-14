@@ -63,7 +63,7 @@ services:
     depends_on: 
       - db
   jenkins:
-    image: stephenreed/jenkins-java8-maven-git
+    image: viviangb/jenkins
     networks:
       - local
     ports:
